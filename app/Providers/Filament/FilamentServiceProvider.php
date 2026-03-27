@@ -46,9 +46,9 @@ class FilamentServiceProvider extends ServiceProvider
     {
         FilamentColor::register([
             'danger' => Color::Red,
-            'gray' => Color::Zinc,
-            'info' => Color::Sky,
-            'primary' => Color::Blue,
+            'gray' => Color::Slate,
+            'info' => Color::Indigo,
+            'primary' => Color::Indigo,
             'success' => Color::Green,
             'warning' => Color::Amber,
             'blurple' => Color::hex('#5865F2'),

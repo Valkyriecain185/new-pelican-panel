@@ -2,7 +2,7 @@
 
 return [
 
-    'name' => env('APP_NAME', 'Pelican'),
+    'name' => env('APP_NAME', 'NovaPanel'),
     'logo' => env('APP_LOGO'),
     'favicon' => env('APP_FAVICON', '/pelican.ico'),
 

@@ -33,7 +33,7 @@ abstract class PanelProvider extends BasePanelProvider
                 '*/oauth/redirect/*',
             ])
             ->databaseNotifications()
-            ->brandName(config('app.name', 'Pelican'))
+            ->brandName(config('app.name', 'NovaPanel'))
             ->brandLogo(config('app.logo'))
             ->brandLogoHeight('2rem')
             ->favicon(config('app.favicon', '/pelican.ico'))
