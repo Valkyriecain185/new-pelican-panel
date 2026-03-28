@@ -70,15 +70,17 @@ class Register extends BaseRegister
             ->extraInputAttributes(['tabindex' => 3]);
     }
 
-    protected function getPasswordConfirmationFormComponent(): Component
+    protected function getUsernameFormComponent(): Component
     {
-        return TextInput::make('passwordConfirmation')
-            ->label('Confirm password')
-            ->password()
-            ->revealable()
+        return TextInput::make('name')
+            ->label('Username')
             ->required()
-            ->dehydrateStateUsing(fn ($state) => null)
-            ->extraInputAttributes(['tabindex' => 4]);
+            ->maxLength(255)
+            ->unique(User::class, 'name')
+            ->alphaDash()
+            ->autocomplete('username')
+            ->autofocus()
+            ->extraInputAttributes(['tabindex' => 1]);
     }
 
     protected function getTermsFormComponent(): Component
@@ -97,9 +99,7 @@ class Register extends BaseRegister
 
     protected function mutateFormDataBeforeRegister(array $data): array
     {
-        $data['name'] = $data['username'];
-        unset($data['username'], $data['passwordConfirmation'], $data['terms']);
-
+        unset($data['passwordConfirmation'], $data['terms']);
         return $data;
     }
 }
