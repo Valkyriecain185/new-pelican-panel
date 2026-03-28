@@ -5,10 +5,8 @@ namespace App\Filament\Pages\Auth;
 use App\Models\User;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Auth\Pages\Register as BaseRegister;
 use Filament\Schemas\Components\Component;
-use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -33,11 +31,11 @@ class Register extends BaseRegister
 
     protected function getUsernameFormComponent(): Component
     {
-        return TextInput::make('username')
+        return TextInput::make('name')
             ->label('Username')
             ->required()
             ->maxLength(255)
-            ->unique(User::class)
+            ->unique(User::class, 'name')
             ->alphaDash()
             ->autocomplete('username')
             ->autofocus()
@@ -70,17 +68,15 @@ class Register extends BaseRegister
             ->extraInputAttributes(['tabindex' => 3]);
     }
 
-    protected function getUsernameFormComponent(): Component
+    protected function getPasswordConfirmationFormComponent(): Component
     {
-        return TextInput::make('name')
-            ->label('Username')
+        return TextInput::make('passwordConfirmation')
+            ->label('Confirm password')
+            ->password()
+            ->revealable()
             ->required()
-            ->maxLength(255)
-            ->unique(User::class, 'name')
-            ->alphaDash()
-            ->autocomplete('username')
-            ->autofocus()
-            ->extraInputAttributes(['tabindex' => 1]);
+            ->dehydrateStateUsing(fn ($state) => null)
+            ->extraInputAttributes(['tabindex' => 4]);
     }
 
     protected function getTermsFormComponent(): Component
