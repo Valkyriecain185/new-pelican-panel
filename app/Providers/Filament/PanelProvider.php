@@ -22,6 +22,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Filament\Pages\Auth\Register;
 
 abstract class PanelProvider extends BasePanelProvider
 {
@@ -54,6 +55,7 @@ abstract class PanelProvider extends BasePanelProvider
                     ->url(fn () => EditProfile::getUrl(panel: 'app')),
             ])
             ->login(Login::class)
+            ->registration(Register::class)
             ->passwordReset()
             ->multiFactorAuthentication([
                 AppAuthentication::make()->recoverable(),
