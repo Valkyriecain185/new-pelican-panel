@@ -834,6 +834,13 @@
     </ul>
     <p class="footer-copy">&copy; {{ date('Y') }} NovaPanel by Sentinel Development</p>
 </footer>
-
+<script>
+    document.querySelectorAll('a[href="/register"], a[href="/login"]').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = this.getAttribute('href');
+        });
+    });
+</script>
 </body>
 </html>
