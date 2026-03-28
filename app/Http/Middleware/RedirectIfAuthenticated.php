@@ -13,7 +13,7 @@ readonly class RedirectIfAuthenticated
     public function handle(Request $request, Closure $next, ?string $guard = null): mixed
     {
         if ($this->authManager->guard($guard)->check()) {
-            return redirect('/');
+            return redirect('/panel');
         }
 
         return $next($request);

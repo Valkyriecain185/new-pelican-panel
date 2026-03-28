@@ -16,6 +16,7 @@ class AppPanelProvider extends PanelProvider
         $panel = parent::panel($panel)
             ->id('app')
             ->default()
+            ->path('panel')
             ->breadcrumbs(false)
             ->navigation(false)
             ->topbar(true)
