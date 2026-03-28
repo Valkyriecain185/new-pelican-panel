@@ -9,3 +9,7 @@ Route::get('installer', PanelInstaller::class)->name('installer')
 Route::get('/', function () {
     return view('home');
 })->name('home')->middleware('guest');
+
+Route::get('/store', function () {
+    return view('store');
+})->name('store');
