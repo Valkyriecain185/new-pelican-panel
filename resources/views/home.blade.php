@@ -621,8 +621,8 @@
         <li><a href="#support">Support</a></li>
     </ul>
     <div class="nav-cta">
-        <a href="/login" class="btn-ghost">Sign in</a>
-        <a href="/register" class="btn-primary">Get started</a>
+        <a href="/panel/login" class="btn-ghost">Sign in</a>
+        <a href="/panel/register" class="btn-primary">Get started</a>
     </div>
 </nav>
 
@@ -639,7 +639,7 @@
         </h1>
         <p>Deploy, manage, and scale your game servers in seconds. NovaPanel gives you enterprise-grade infrastructure without the enterprise-grade headache.</p>
         <div class="hero-actions">
-            <a href="/register" class="btn-primary btn-large">Deploy your first server</a>
+            <a href="/panel/register" class="btn-primary btn-large">Deploy your first server</a>
             <a href="#pricing" class="btn-outline">View pricing</a>
         </div>
         <div class="hero-stats">
@@ -741,7 +741,7 @@
                 <li>Daily backups</li>
                 <li>Community support</li>
             </ul>
-            <a href="/register" class="btn-primary btn-full">Get started</a>
+            <a href="/panel/register" class="btn-primary btn-full">Get started</a>
         </div>
         <div class="pricing-card featured">
             <div class="pricing-badge">Most popular</div>
@@ -762,7 +762,7 @@
                 <li>Custom domain routing</li>
                 <li>Priority support</li>
             </ul>
-            <a href="/register" class="btn-primary btn-full">Get started</a>
+            <a href="/panel/register" class="btn-primary btn-full">Get started</a>
         </div>
         <div class="pricing-card">
             <div class="pricing-tier">Business</div>
@@ -783,7 +783,7 @@
                 <li>Dedicated support</li>
                 <li>SLA guarantee</li>
             </ul>
-            <a href="/register" class="btn-primary btn-full">Get started</a>
+            <a href="/panel/register" class="btn-primary btn-full">Get started</a>
         </div>
     </div>
 </section>
@@ -820,7 +820,7 @@
 <div class="cta-banner">
     <h2>Ready to deploy?</h2>
     <p>Get your first server online in under 60 seconds.</p>
-    <a href="/register" class="btn-primary btn-large">Create your account</a>
+    <a href="/panel/register" class="btn-primary btn-large">Create your account</a>
 </div>
 
 <!-- FOOTER -->
@@ -829,13 +829,13 @@
     <ul class="footer-links">
         <li><a href="#features">Features</a></li>
         <li><a href="#pricing">Pricing</a></li>
-        <li><a href="/login">Login</a></li>
+        <li><a href="/panel/login">Login</a></li>
         <li><a href="https://sentinel-development.co.uk">Sentinel Development</a></li>
     </ul>
     <p class="footer-copy">&copy; {{ date('Y') }} NovaPanel by Sentinel Development</p>
 </footer>
 <script>
-    document.querySelectorAll('a[href="/register"], a[href="/login"]').forEach(function(link) {
+    document.querySelectorAll('a[href="/panel/register"], a[href="/panel/login"]').forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             window.location.href = this.getAttribute('href');
