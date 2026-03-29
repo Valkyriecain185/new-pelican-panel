@@ -8,14 +8,15 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('plan');
-            $table->string('billing'); // monthly or annual
-            $table->integer('amount'); // pence, e.g. 500 = £5
+            $table->string('billing');
+            $table->integer('amount');
             $table->string('currency')->default('gbp');
             $table->string('stripe_payment_intent')->nullable();
             $table->string('stripe_subscription_id')->nullable();
-            $table->string('status')->default('pending'); // pending, active, cancelled
+            $table->string('status')->default('pending');
             $table->timestamps();
         });
     }
