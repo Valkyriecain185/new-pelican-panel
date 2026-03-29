@@ -76,7 +76,7 @@ class StripeWebhookController extends Controller
         $egg         = $eggResponse->json('attributes');
         $startup     = $egg['startup'];
         $dockerImage = is_array($egg['docker_images'])
-            ? array_key_first($egg['docker_images'])
+            ? array_values($egg['docker_images'])[0]
             : $egg['docker_image'];
 
         // Build environment from egg default variables
