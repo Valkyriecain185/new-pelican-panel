@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->unsignedInteger('user_id');
             $table->string('plan');
             $table->string('billing');
             $table->integer('amount');
