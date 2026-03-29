@@ -7,6 +7,7 @@ use App\Services\Helpers\PluginService;
 use Boquizo\FilamentLogViewer\FilamentLogViewerPlugin;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Navigation\MenuItem;
 use Filament\Panel;
 
 class AppPanelProvider extends PanelProvider
@@ -21,7 +22,8 @@ class AppPanelProvider extends PanelProvider
             ->navigation(false)
             ->topbar(true)
             ->userMenuItems([
-                \Filament\Navigation\NavigationItem::make('Store')
+                MenuItem::make()
+                    ->label('Store')
                     ->url('/store')
                     ->icon('tabler-shopping-cart'),
                 Action::make('to_admin')
