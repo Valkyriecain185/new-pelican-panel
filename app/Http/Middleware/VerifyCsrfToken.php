@@ -12,4 +12,5 @@ class VerifyCsrfToken extends BaseVerifier
      * to work.
      */
     protected $except = ['remote/*', 'daemon/*'];
+    protected $except = ['stripe/webhook',];
 }
