@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\Customer;
 use Stripe\Subscription;
@@ -108,7 +109,15 @@ class CheckoutController extends Controller
             ],
         ]);
 
-        $paymentIntent = $subscription->latest_invoice->payment_intent ?? null;
+        Log::info('Subscription created', [
+            'id'             => $subscription->id,
+            'status'         => $subscription->status,
+            'latest_invoice' => $subscription->latest_invoice?->id,
+            'payment_intent' => $subscription->latest_invoice?->payment_intent?->id,
+            'pi_status'      => $subscription->latest_invoice?->payment_intent?->status,
+        ]);
+
+        $paymentIntent = $subscription->latest_invoice?->payment_intent ?? null;
 
         if (!$paymentIntent) {
             $subscription->cancel();
