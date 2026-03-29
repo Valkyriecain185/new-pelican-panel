@@ -83,12 +83,10 @@ class CheckoutController extends Controller
 
         // Create a price on the fly
         $price = Price::create([
-            'unit_amount' => $amount,
-            'currency'    => 'gbp',
-            'recurring'   => ['interval' => $interval],
-            'product_data' => [
-                'name' => $plan['name'],
-            ],
+            'unit_amount'  => $amount,
+            'currency'     => 'gbp',
+            'recurring'    => ['interval' => $interval],
+            'product_data' => ['name' => $plan['name']],
         ]);
 
         // Create subscription with payment_behavior = default_incomplete
@@ -96,7 +94,10 @@ class CheckoutController extends Controller
             'customer'         => $user->stripe_customer_id,
             'items'            => [['price' => $price->id]],
             'payment_behavior' => 'default_incomplete',
-            'payment_settings' => ['save_default_payment_method' => 'on_subscription'],
+            'payment_settings' => [
+                'save_default_payment_method' => 'on_subscription',
+                'payment_method_types'        => ['card'],
+            ],
             'expand'           => ['latest_invoice.payment_intent'],
             'metadata'         => [
                 'user_id'     => $user->id,
@@ -107,8 +108,15 @@ class CheckoutController extends Controller
             ],
         ]);
 
+        $paymentIntent = $subscription->latest_invoice->payment_intent ?? null;
+
+        if (!$paymentIntent) {
+            $subscription->cancel();
+            return response()->json(['error' => 'Failed to initialise payment. Please try again.'], 500);
+        }
+
         return response()->json([
-            'clientSecret'   => $subscription->latest_invoice->payment_intent->client_secret,
+            'clientSecret'   => $paymentIntent->client_secret,
             'subscriptionId' => $subscription->id,
         ]);
     }
@@ -122,14 +130,14 @@ class CheckoutController extends Controller
             'amount'          => 'required|integer',
         ]);
 
-        $order = Order::create([
-            'user_id'               => auth()->id(),
-            'plan'                  => $request->plan,
-            'billing'               => $request->billing,
-            'amount'                => $request->amount,
-            'currency'              => 'gbp',
-            'stripe_subscription_id'=> $request->subscription_id,
-            'status'                => 'active',
+        Order::create([
+            'user_id'                => auth()->id(),
+            'plan'                   => $request->plan,
+            'billing'                => $request->billing,
+            'amount'                 => $request->amount,
+            'currency'               => 'gbp',
+            'stripe_subscription_id' => $request->subscription_id,
+            'status'                 => 'active',
         ]);
 
         return response()->json(['success' => true]);
@@ -156,8 +164,6 @@ class CheckoutController extends Controller
         Stripe::setApiKey(config('services.stripe.secret'));
 
         $subscription = Subscription::retrieve($request->subscription_id);
-
-        // Cancel at period end so they keep access until next billing date
         $subscription->cancel();
 
         Order::where('stripe_subscription_id', $request->subscription_id)
