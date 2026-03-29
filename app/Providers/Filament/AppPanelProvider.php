@@ -21,6 +21,9 @@ class AppPanelProvider extends PanelProvider
             ->navigation(false)
             ->topbar(true)
             ->userMenuItems([
+                \Filament\Navigation\NavigationItem::make('Store')
+                    ->url('/store')
+                    ->icon('tabler-shopping-cart'),
                 Action::make('to_admin')
                     ->label(trans('profile.admin'))
                     ->url(fn () => Filament::getPanel('admin')->getUrl())
