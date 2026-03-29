@@ -109,15 +109,20 @@ class CheckoutController extends Controller
             ],
         ]);
 
-        Log::info('Subscription created', [
-            'id'             => $subscription->id,
-            'status'         => $subscription->status,
-            'latest_invoice' => $subscription->latest_invoice?->id,
-            'payment_intent' => $subscription->latest_invoice?->payment_intent?->id,
-            'pi_status'      => $subscription->latest_invoice?->payment_intent?->status,
+        // Explicitly retrieve the invoice with payment_intent expanded
+        $invoice = \Stripe\Invoice::retrieve([
+            'id'     => $subscription->latest_invoice->id,
+            'expand' => ['payment_intent'],
         ]);
 
-        $paymentIntent = $subscription->latest_invoice?->payment_intent ?? null;
+        Log::info('Invoice retrieved', [
+            'invoice_id'     => $invoice->id,
+            'invoice_status' => $invoice->status,
+            'pi_id'          => $invoice->payment_intent?->id,
+            'pi_status'      => $invoice->payment_intent?->status,
+        ]);
+
+        $paymentIntent = $invoice->payment_intent ?? null;
 
         if (!$paymentIntent) {
             $subscription->cancel();
