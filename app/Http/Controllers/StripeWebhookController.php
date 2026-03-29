@@ -12,9 +12,9 @@ class StripeWebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        $payload = $request->getContent();
+        $payload   = $request->getContent();
         $sigHeader = $request->header('Stripe-Signature');
-        $secret = config('services.stripe.webhook_secret');
+        $secret    = config('services.stripe.webhook_secret');
 
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $secret);
@@ -24,8 +24,7 @@ class StripeWebhookController extends Controller
         }
 
         if ($event->type === 'payment_intent.succeeded') {
-            $intent = $event->data->object;
-            $this->provision($intent);
+            $this->provision($event->data->object);
         }
 
         return response()->json(['status' => 'ok']);
@@ -33,9 +32,11 @@ class StripeWebhookController extends Controller
 
     private function provision($intent)
     {
-        $userId  = $intent->metadata->user_id;
-        $planKey = $intent->metadata->plan;
-        $billing = $intent->metadata->billing;
+        $userId     = $intent->metadata->user_id;
+        $planKey    = $intent->metadata->plan;
+        $billing    = $intent->metadata->billing;
+        $serverName = $intent->metadata->server_name ?? "Server-{$userId}-{$planKey}";
+        $eggId      = (int) ($intent->metadata->egg_id ?? 1);
 
         Order::where('stripe_payment_intent', $intent->id)
             ->update(['status' => 'active']);
@@ -61,6 +62,30 @@ class StripeWebhookController extends Controller
         $panelUrl = 'https://panel-dev.sentinel-development.co.uk';
         $apiKey   = 'papp_AKp1307MLiN6GoyT91iuzwC57P2c3LDJ2Erp9s1xeVl';
 
+        // Fetch egg details so we use the correct startup, docker image and environment
+        $eggResponse = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey,
+            'Accept'        => 'application/json',
+        ])->get("{$panelUrl}/api/application/eggs/{$eggId}?include=variables");
+
+        if (!$eggResponse->successful()) {
+            Log::error("Failed to fetch egg {$eggId}: " . $eggResponse->body());
+            return;
+        }
+
+        $egg         = $eggResponse->json('attributes');
+        $startup     = $egg['startup'];
+        $dockerImage = is_array($egg['docker_images'])
+            ? array_key_first($egg['docker_images'])
+            : $egg['docker_image'];
+
+        // Build environment from egg default variables
+        $environment = [];
+        foreach ($egg['relationships']['variables']['data'] ?? [] as $var) {
+            $attr = $var['attributes'];
+            $environment[$attr['env_variable']] = $attr['default_value'];
+        }
+
         // Get a free allocation
         $allocResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
@@ -82,16 +107,13 @@ class StripeWebhookController extends Controller
             'Accept'        => 'application/json',
             'Content-Type'  => 'application/json',
         ])->post("{$panelUrl}/api/application/servers", [
-            'name'         => "Server-{$userId}-{$planKey}",
+            'name'         => $serverName,
             'user'         => (int) $userId,
-            'egg'          => 1,
-            'docker_image' => 'ghcr.io/pterodactyl/yolks:java_17',
-            'startup'      => 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar server.jar',
-            'environment'  => [
-                'SERVER_JARFILE'  => 'server.jar',
-                'VANILLA_VERSION' => 'latest',
-            ],
-            'limits' => [
+            'egg'          => $eggId,
+            'docker_image' => $dockerImage,
+            'startup'      => $startup,
+            'environment'  => $environment,
+            'limits'       => [
                 'memory' => $spec['memory'],
                 'swap'   => 0,
                 'disk'   => $spec['disk'],
@@ -109,10 +131,9 @@ class StripeWebhookController extends Controller
         ]);
 
         if ($response->successful()) {
-            Log::info("Server provisioned for user {$userId} on plan {$planKey}");
+            Log::info("Server provisioned for user {$userId} on plan {$planKey} with egg {$eggId}");
         } else {
             Log::error("Server provisioning failed: " . $response->body());
         }
     }
 }
-

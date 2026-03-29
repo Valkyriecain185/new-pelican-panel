@@ -46,8 +46,10 @@ class CheckoutController extends Controller
     public function createIntent(Request $request)
     {
         $request->validate([
-            'plan'    => 'required|string',
-            'billing' => 'required|in:monthly,annual',
+            'plan'        => 'required|string',
+            'billing'     => 'required|in:monthly,annual',
+            'server_name' => 'required|string|max:64',
+            'egg_id'      => 'required|integer',
         ]);
 
         $planKey = $request->plan;
@@ -65,9 +67,11 @@ class CheckoutController extends Controller
             'amount'   => $amount,
             'currency' => 'gbp',
             'metadata' => [
-                'user_id' => auth()->id(),
-                'plan'    => $planKey,
-                'billing' => $request->billing,
+                'user_id'     => auth()->id(),
+                'plan'        => $planKey,
+                'billing'     => $request->billing,
+                'server_name' => $request->server_name,
+                'egg_id'      => $request->egg_id,
             ],
         ]);
 
