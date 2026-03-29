@@ -61,6 +61,12 @@ abstract class PanelProvider extends BasePanelProvider
                 AppAuthentication::make()->recoverable(),
                 EmailAuthentication::make(),
             ])
+            ->navigationItems([
+                \Filament\Navigation\NavigationItem::make('Store')
+                    ->url('/store')
+                    ->icon('tabler-shopping-cart')
+                    ->sort(99),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
