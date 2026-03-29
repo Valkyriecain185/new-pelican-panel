@@ -223,6 +223,8 @@
             position: relative;
             z-index: 1;
             padding: 0 6% 6rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
         /* CATEGORY TABS */
@@ -231,6 +233,7 @@
             gap: 0.5rem;
             margin-bottom: 3rem;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .tab-btn {
@@ -260,8 +263,9 @@
         /* PLANS */
         .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 1.5rem;
+            justify-items: center;
         }
 
         .plan-card {
@@ -273,6 +277,8 @@
             transition: border-color 0.2s, transform 0.2s;
             display: flex;
             flex-direction: column;
+            width: 100%;
+            max-width: 360px;
         }
 
         .plan-card:hover {
@@ -446,6 +452,8 @@
             position: relative;
             z-index: 1;
             padding: 0 6% 6rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
         .addons-header {
