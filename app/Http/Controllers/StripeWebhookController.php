@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Invoice;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -23,23 +24,109 @@ class StripeWebhookController extends Controller
             return response()->json(['error' => 'Invalid signature'], 400);
         }
 
-        if ($event->type === 'payment_intent.succeeded') {
-            $this->provision($event->data->object);
-        }
+        match ($event->type) {
+            'invoice.payment_succeeded'  => $this->handleInvoicePaid($event->data->object),
+            'invoice.payment_failed'     => $this->handleInvoiceFailed($event->data->object),
+            'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
+            default => null,
+        };
 
         return response()->json(['status' => 'ok']);
     }
 
-    private function provision($intent)
+    private function handleInvoicePaid($invoice)
     {
-        $userId     = $intent->metadata->user_id;
-        $planKey    = $intent->metadata->plan;
-        $billing    = $intent->metadata->billing;
-        $serverName = $intent->metadata->server_name ?? "Server-{$userId}-{$planKey}";
-        $eggId      = (int) ($intent->metadata->egg_id ?? 1);
+        $subscriptionId = $invoice->subscription;
+        $customerId     = $invoice->customer;
 
-        Order::where('stripe_payment_intent', $intent->id)
+        // Find the subscription to get metadata
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+        $subscription = \Stripe\Subscription::retrieve([
+            'id'     => $subscriptionId,
+            'expand' => [],
+        ]);
+
+        $metadata = $subscription->metadata;
+        $userId   = $metadata->user_id ?? null;
+        $planKey  = $metadata->plan ?? null;
+
+        if (!$userId || !$planKey) {
+            Log::error('Missing metadata on subscription: ' . $subscriptionId);
+            return;
+        }
+
+        // Create invoice record
+        Invoice::create([
+            'user_id'               => $userId,
+            'stripe_invoice_id'     => $invoice->id,
+            'stripe_subscription_id'=> $subscriptionId,
+            'plan'                  => $planKey,
+            'amount'                => $invoice->amount_paid,
+            'currency'              => $invoice->currency,
+            'status'                => 'paid',
+            'paid_at'               => now(),
+        ]);
+
+        // Only provision server on first invoice
+        if ($invoice->billing_reason === 'subscription_create') {
+            $this->provision($subscription);
+        }
+
+        // Make sure order is active
+        Order::where('stripe_subscription_id', $subscriptionId)
             ->update(['status' => 'active']);
+
+        Log::info("Invoice paid for user {$userId} on plan {$planKey}");
+    }
+
+    private function handleInvoiceFailed($invoice)
+    {
+        $subscriptionId = $invoice->subscription;
+
+        // Set grace period — mark as past_due, server stays up for 1 day
+        Order::where('stripe_subscription_id', $subscriptionId)
+            ->update(['status' => 'past_due']);
+
+        Log::warning("Invoice payment failed for subscription {$subscriptionId} — grace period started");
+    }
+
+    private function handleSubscriptionDeleted($subscription)
+    {
+        $subscriptionId = $subscription->id;
+        $metadata       = $subscription->metadata;
+        $userId         = $metadata->user_id ?? null;
+
+        Order::where('stripe_subscription_id', $subscriptionId)
+            ->update(['status' => 'cancelled']);
+
+        // Suspend the server via Pelican API
+        $panelUrl = 'https://panel-dev.sentinel-development.co.uk';
+        $apiKey   = 'papp_AKp1307MLiN6GoyT91iuzwC57P2c3LDJ2Erp9s1xeVl';
+
+        // Find servers belonging to this user and suspend them
+        $serversResponse = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey,
+            'Accept'        => 'application/json',
+        ])->get("{$panelUrl}/api/application/servers?filter[external_id]={$subscriptionId}");
+
+        foreach ($serversResponse->json('data') ?? [] as $server) {
+            $serverId = $server['attributes']['id'];
+            Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Accept'        => 'application/json',
+            ])->post("{$panelUrl}/api/application/servers/{$serverId}/suspend");
+        }
+
+        Log::info("Subscription {$subscriptionId} cancelled — server suspended");
+    }
+
+    private function provision($subscription)
+    {
+        $metadata   = $subscription->metadata;
+        $userId     = $metadata->user_id;
+        $planKey    = $metadata->plan;
+        $serverName = $metadata->server_name ?? "Server-{$userId}-{$planKey}";
+        $eggId      = (int) ($metadata->egg_id ?? 1);
 
         $specs = [
             'starter'      => ['memory' => 2048,  'disk' => 20480,  'cpu' => 200],
@@ -54,7 +141,7 @@ class StripeWebhookController extends Controller
         ];
 
         if (!isset($specs[$planKey])) {
-            Log::error('Unknown plan in webhook: ' . $planKey);
+            Log::error('Unknown plan: ' . $planKey);
             return;
         }
 
@@ -62,7 +149,7 @@ class StripeWebhookController extends Controller
         $panelUrl = 'https://panel-dev.sentinel-development.co.uk';
         $apiKey   = 'papp_AKp1307MLiN6GoyT91iuzwC57P2c3LDJ2Erp9s1xeVl';
 
-        // Fetch egg details so we use the correct startup, docker image and environment
+        // Fetch egg details
         $eggResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Accept'        => 'application/json',
@@ -79,14 +166,13 @@ class StripeWebhookController extends Controller
             ? array_values($egg['docker_images'])[0]
             : $egg['docker_image'];
 
-        // Build environment from egg default variables
         $environment = [];
         foreach ($egg['relationships']['variables']['data'] ?? [] as $var) {
             $attr = $var['attributes'];
             $environment[$attr['env_variable']] = $attr['default_value'];
         }
 
-        // Get a free allocation
+        // Get free allocation
         $allocResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Accept'        => 'application/json',
@@ -131,7 +217,7 @@ class StripeWebhookController extends Controller
         ]);
 
         if ($response->successful()) {
-            Log::info("Server provisioned for user {$userId} on plan {$planKey} with egg {$eggId}");
+            Log::info("Server provisioned for user {$userId} on plan {$planKey}");
         } else {
             Log::error("Server provisioning failed: " . $response->body());
         }

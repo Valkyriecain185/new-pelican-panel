@@ -25,3 +25,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/order/confirmation', [CheckoutController::class, 'confirmation'])->name('order.confirmation');
 });
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/invoices', [CheckoutController::class, 'invoices'])->name('invoices');
+    Route::post('/subscription/cancel', [CheckoutController::class, 'cancel'])->name('subscription.cancel');
+});

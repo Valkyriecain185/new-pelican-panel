@@ -92,6 +92,12 @@
         }
         .total-line .label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
         .total-line .value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2rem; }
+        .recurring-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 0.4rem;
+        }
         .payment-box {
             background: var(--navy-2);
             border: 1px solid var(--border);
@@ -177,10 +183,7 @@
             color: var(--text-muted);
             justify-content: center;
         }
-        .divider {
-            height: 1px;
-            background: var(--border);
-        }
+        .divider { height: 1px; background: var(--border); }
         @media (max-width: 700px) {
             .checkout-wrap { grid-template-columns: 1fr; }
         }
@@ -207,6 +210,9 @@
         <div class="total-line">
             <span class="label">Total today</span>
             <span class="value">£{{ $amountPounds }}</span>
+        </div>
+        <div class="recurring-note">
+            Then £{{ $amountPounds }} / {{ $billing === 'annual' ? 'year' : 'month' }} — cancel anytime
         </div>
     </div>
 
@@ -305,7 +311,7 @@
         <div id="card-element"></div>
         <div id="card-errors"></div>
         <button class="btn-pay" id="pay-btn">Pay £{{ $amountPounds }}</button>
-        <div class="secure-note">🔒 Secured by Stripe. We never store card details.</div>
+        <div class="secure-note">🔒 Secured by Stripe. Recurring {{ $billing }} billing — cancel anytime.</div>
     </div>
 </div>
 
@@ -359,7 +365,7 @@
             }),
         });
 
-        const { clientSecret, error } = await res.json();
+        const { clientSecret, subscriptionId, error } = await res.json();
 
         if (error) {
             document.getElementById('card-errors').textContent = error;
@@ -384,12 +390,10 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 },
                 body: JSON.stringify({
-                    payment_intent_id: result.paymentIntent.id,
+                    subscription_id: subscriptionId,
                     plan: '{{ $planKey }}',
                     billing: '{{ $billing }}',
                     amount: {{ $amount }},
-                    server_name: serverName,
-                    egg_id: eggId,
                 }),
             });
 
