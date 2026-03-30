@@ -25,8 +25,8 @@ class StripeWebhookController extends Controller
         }
 
         match ($event->type) {
-            'invoice.payment_succeeded'  => $this->handleInvoicePaid($event->data->object),
-            'invoice.payment_failed'     => $this->handleInvoiceFailed($event->data->object),
+            'invoice.payment_succeeded'     => $this->handleInvoicePaid($event->data->object),
+            'invoice.payment_failed'        => $this->handleInvoiceFailed($event->data->object),
             'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
             default => null,
         };
@@ -46,7 +46,7 @@ class StripeWebhookController extends Controller
         ]);
 
         if (!$subscriptionId) {
-            Log::error('No subscription ID on invoice');
+            Log::info('No subscription ID on invoice — skipping');
             return;
         }
 
@@ -57,45 +57,36 @@ class StripeWebhookController extends Controller
         $userId   = $metadata->user_id ?? null;
         $planKey  = $metadata->plan ?? null;
 
-        Log::info('Subscription metadata', [
-            'user_id' => $userId,
-            'plan'    => $planKey,
-            'billing_reason' => $invoice->billing_reason,
-        ]);
-
         if (!$userId || !$planKey) {
             Log::error('Missing metadata on subscription: ' . $subscriptionId);
             return;
         }
 
-        // Create invoice record
-        Invoice::create([
-            'user_id'                => $userId,
-            'stripe_invoice_id'      => $invoice->id,
-            'stripe_subscription_id' => $subscriptionId,
-            'plan'                   => $planKey,
-            'amount'                 => $invoice->amount_paid,
-            'currency'               => $invoice->currency,
-            'status'                 => 'paid',
-            'paid_at'                => now(),
-        ]);
-
-        // Only provision server on first invoice
-        if ($invoice->billing_reason === 'subscription_create') {
-            $this->provision($subscription);
+        // Create invoice record for renewal payments
+        // (first invoice is created in CheckoutController::complete)
+        if ($invoice->billing_reason !== 'subscription_create') {
+            Invoice::create([
+                'user_id'                => $userId,
+                'stripe_invoice_id'      => $invoice->id,
+                'stripe_subscription_id' => $subscriptionId,
+                'plan'                   => $planKey,
+                'amount'                 => $invoice->amount_paid,
+                'currency'               => $invoice->currency,
+                'status'                 => 'paid',
+                'paid_at'                => now(),
+            ]);
         }
 
         Order::where('stripe_subscription_id', $subscriptionId)
             ->update(['status' => 'active']);
 
-        Log::info("Invoice paid for user {$userId} on plan {$planKey}");
+        Log::info("Invoice paid for user {$userId} on plan {$planKey} — reason: {$invoice->billing_reason}");
     }
 
     private function handleInvoiceFailed($invoice)
     {
         $subscriptionId = $invoice->subscription;
 
-        // Set grace period — mark as past_due, server stays up for 1 day
         Order::where('stripe_subscription_id', $subscriptionId)
             ->update(['status' => 'past_due']);
 
@@ -105,17 +96,13 @@ class StripeWebhookController extends Controller
     private function handleSubscriptionDeleted($subscription)
     {
         $subscriptionId = $subscription->id;
-        $metadata       = $subscription->metadata;
-        $userId         = $metadata->user_id ?? null;
 
         Order::where('stripe_subscription_id', $subscriptionId)
             ->update(['status' => 'cancelled']);
 
-        // Suspend the server via Pelican API
         $panelUrl = 'https://panel-dev.sentinel-development.co.uk';
         $apiKey   = 'papp_AKp1307MLiN6GoyT91iuzwC57P2c3LDJ2Erp9s1xeVl';
 
-        // Find servers belonging to this user and suspend them
         $serversResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Accept'        => 'application/json',
@@ -130,6 +117,11 @@ class StripeWebhookController extends Controller
         }
 
         Log::info("Subscription {$subscriptionId} cancelled — server suspended");
+    }
+
+    public function provisionFromSubscription($subscription)
+    {
+        $this->provision($subscription);
     }
 
     private function provision($subscription)

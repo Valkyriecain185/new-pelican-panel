@@ -131,7 +131,7 @@ class CheckoutController extends Controller
             'invoice_settings' => ['default_payment_method' => $paymentMethodId],
         ]);
 
-        // Now create the subscription with the saved card
+        // Create the subscription with the saved card
         $subscription = Subscription::create([
             'customer'               => $user->stripe_customer_id,
             'items'                  => [['price' => $setupIntent->metadata->price_id]],
@@ -145,7 +145,7 @@ class CheckoutController extends Controller
             ],
         ]);
 
-        Order::create([
+        $order = Order::create([
             'user_id'                => auth()->id(),
             'plan'                   => $request->plan,
             'billing'                => $request->billing,
@@ -154,6 +154,21 @@ class CheckoutController extends Controller
             'stripe_subscription_id' => $subscription->id,
             'status'                 => 'active',
         ]);
+
+        // Create invoice record
+        \App\Models\Invoice::create([
+            'user_id'                => auth()->id(),
+            'order_id'               => $order->id,
+            'stripe_subscription_id' => $subscription->id,
+            'plan'                   => $request->plan,
+            'amount'                 => $request->amount,
+            'currency'               => 'gbp',
+            'status'                 => 'paid',
+            'paid_at'                => now(),
+        ]);
+
+        // Provision server immediately
+        app(\App\Http\Controllers\StripeWebhookController::class)->provisionFromSubscription($subscription);
 
         return response()->json(['success' => true]);
     }
