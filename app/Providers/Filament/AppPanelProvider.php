@@ -7,7 +7,6 @@ use App\Services\Helpers\PluginService;
 use Boquizo\FilamentLogViewer\FilamentLogViewerPlugin;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Navigation\MenuItem;
 use Filament\Panel;
 
 class AppPanelProvider extends PanelProvider
@@ -21,15 +20,11 @@ class AppPanelProvider extends PanelProvider
             ->breadcrumbs(false)
             ->navigation(false)
             ->topbar(true)
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::TOPBAR_END,
+                fn () => view('components.topbar-links'),
+            )
             ->userMenuItems([
-                MenuItem::make()
-                    ->label('Store')
-                    ->url('/store')
-                    ->icon(TablerIcon::ShoppingCart),
-                MenuItem::make()
-                    ->label('Billing & Invoices')
-                    ->url('/invoices')
-                    ->icon(TablerIcon::ReceiptPound),
                 Action::make('to_admin')
                     ->label(trans('profile.admin'))
                     ->url(fn () => Filament::getPanel('admin')->getUrl())
