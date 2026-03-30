@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\TablerIcon;
 use App\Filament\Admin\Resources\InvoiceResource\Pages;
 use App\Models\Invoice;
 use Filament\Resources\Resource;
@@ -12,7 +13,7 @@ use Filament\Tables\Columns\TextColumn;
 class InvoiceResource extends Resource
 {
     protected static ?string $model = Invoice::class;
-    protected static ?string $navigationIcon = 'tabler-receipt';
+    protected static string|BackedEnum|null $navigationIcon = TablerIcon::ReceiptPound;
     protected static ?string $navigationLabel = 'Invoices';
     protected static ?int $navigationSort = 1;
 
