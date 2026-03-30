@@ -25,11 +25,11 @@ class AppPanelProvider extends PanelProvider
                 MenuItem::make()
                     ->label('Store')
                     ->url('/store')
-                    ->icon('tabler-shopping-cart'),
+                    ->icon(TablerIcon::ShoppingCart),
                 MenuItem::make()
                     ->label('Billing & Invoices')
                     ->url('/invoices')
-                    ->icon('tabler-receipt'),
+                    ->icon(TablerIcon::ReceiptPound),
                 Action::make('to_admin')
                     ->label(trans('profile.admin'))
                     ->url(fn () => Filament::getPanel('admin')->getUrl())
