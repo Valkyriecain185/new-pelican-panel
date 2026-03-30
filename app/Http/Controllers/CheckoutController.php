@@ -184,7 +184,11 @@ class CheckoutController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        return view('invoices', compact('invoices'));
+        $orders = Order::where('user_id', auth()->id())
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('invoices', compact('invoices', 'orders'));
     }
 
     public function cancel(Request $request)
