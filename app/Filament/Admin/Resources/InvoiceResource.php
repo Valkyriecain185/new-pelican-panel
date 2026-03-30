@@ -14,7 +14,6 @@ class InvoiceResource extends Resource
     protected static ?string $model = Invoice::class;
     protected static ?string $navigationIcon = 'tabler-receipt';
     protected static ?string $navigationLabel = 'Invoices';
-    protected static ?string $navigationGroup = 'Billing';
     protected static ?int $navigationSort = 1;
 
     public static function table(Table $table): Table
