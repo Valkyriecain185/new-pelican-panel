@@ -37,18 +37,31 @@ class StripeWebhookController extends Controller
     private function handleInvoicePaid($invoice)
     {
         $subscriptionId = $invoice->subscription;
-        $customerId     = $invoice->customer;
 
-        // Find the subscription to get metadata
-        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
-        $subscription = \Stripe\Subscription::retrieve([
-            'id'     => $subscriptionId,
-            'expand' => [],
+        Log::info('Invoice paid webhook received', [
+            'invoice_id'      => $invoice->id,
+            'subscription_id' => $subscriptionId,
+            'billing_reason'  => $invoice->billing_reason,
+            'amount_paid'     => $invoice->amount_paid,
         ]);
+
+        if (!$subscriptionId) {
+            Log::error('No subscription ID on invoice');
+            return;
+        }
+
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+        $subscription = \Stripe\Subscription::retrieve($subscriptionId);
 
         $metadata = $subscription->metadata;
         $userId   = $metadata->user_id ?? null;
         $planKey  = $metadata->plan ?? null;
+
+        Log::info('Subscription metadata', [
+            'user_id' => $userId,
+            'plan'    => $planKey,
+            'billing_reason' => $invoice->billing_reason,
+        ]);
 
         if (!$userId || !$planKey) {
             Log::error('Missing metadata on subscription: ' . $subscriptionId);
@@ -57,14 +70,14 @@ class StripeWebhookController extends Controller
 
         // Create invoice record
         Invoice::create([
-            'user_id'               => $userId,
-            'stripe_invoice_id'     => $invoice->id,
-            'stripe_subscription_id'=> $subscriptionId,
-            'plan'                  => $planKey,
-            'amount'                => $invoice->amount_paid,
-            'currency'              => $invoice->currency,
-            'status'                => 'paid',
-            'paid_at'               => now(),
+            'user_id'                => $userId,
+            'stripe_invoice_id'      => $invoice->id,
+            'stripe_subscription_id' => $subscriptionId,
+            'plan'                   => $planKey,
+            'amount'                 => $invoice->amount_paid,
+            'currency'               => $invoice->currency,
+            'status'                 => 'paid',
+            'paid_at'                => now(),
         ]);
 
         // Only provision server on first invoice
@@ -72,7 +85,6 @@ class StripeWebhookController extends Controller
             $this->provision($subscription);
         }
 
-        // Make sure order is active
         Order::where('stripe_subscription_id', $subscriptionId)
             ->update(['status' => 'active']);
 
