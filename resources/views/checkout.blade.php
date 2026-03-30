@@ -351,6 +351,7 @@
         btn.disabled = true;
         btn.textContent = 'Processing...';
 
+        // Step 1 — get SetupIntent client secret
         const res = await fetch('/checkout/intent', {
             method: 'POST',
             headers: {
@@ -365,7 +366,7 @@
             }),
         });
 
-        const { clientSecret, subscriptionId, error } = await res.json();
+        const { clientSecret, error } = await res.json();
 
         if (error) {
             document.getElementById('card-errors').textContent = error;
@@ -374,7 +375,8 @@
             return;
         }
 
-        const result = await stripe.confirmCardPayment(clientSecret, {
+        // Step 2 — confirm card setup (saves card to customer)
+        const result = await stripe.confirmCardSetup(clientSecret, {
             payment_method: { card }
         });
 
@@ -382,23 +384,34 @@
             document.getElementById('card-errors').textContent = result.error.message;
             btn.disabled = false;
             btn.textContent = 'Pay £{{ $amountPounds }}';
-        } else {
-            await fetch('/checkout/complete', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({
-                    subscription_id: subscriptionId,
-                    plan: '{{ $planKey }}',
-                    billing: '{{ $billing }}',
-                    amount: {{ $amount }},
-                }),
-            });
-
-            window.location.href = '/order/confirmation';
+            return;
         }
+
+        // Step 3 — create subscription and order
+        const completeRes = await fetch('/checkout/complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            },
+            body: JSON.stringify({
+                setup_intent_id: result.setupIntent.id,
+                plan: '{{ $planKey }}',
+                billing: '{{ $billing }}',
+                amount: {{ $amount }},
+            }),
+        });
+
+        const completeData = await completeRes.json();
+
+        if (completeData.error) {
+            document.getElementById('card-errors').textContent = completeData.error;
+            btn.disabled = false;
+            btn.textContent = 'Pay £{{ $amountPounds }}';
+            return;
+        }
+
+        window.location.href = '/order/confirmation';
     });
 </script>
 </body>

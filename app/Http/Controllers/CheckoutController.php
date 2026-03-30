@@ -90,58 +90,59 @@ class CheckoutController extends Controller
             'product_data' => ['name' => $plan['name']],
         ]);
 
-        // Create subscription with payment_behavior = default_incomplete
-        $subscription = Subscription::create([
-            'customer'         => $user->stripe_customer_id,
-            'items'            => [['price' => $price->id]],
-            'payment_behavior' => 'default_incomplete',
-            'payment_settings' => [
-                'save_default_payment_method' => 'on_subscription',
-                'payment_method_types'        => ['card'],
-            ],
-            'expand'           => ['latest_invoice.payment_intent'],
-            'metadata'         => [
+        // Create a SetupIntent to collect and save the card first
+        $setupIntent = \Stripe\SetupIntent::create([
+            'customer'             => $user->stripe_customer_id,
+            'payment_method_types' => ['card'],
+            'metadata'             => [
                 'user_id'     => $user->id,
                 'plan'        => $planKey,
                 'billing'     => $request->billing,
                 'server_name' => $request->server_name,
                 'egg_id'      => $request->egg_id,
+                'price_id'    => $price->id,
             ],
         ]);
 
-        // Explicitly retrieve the invoice with payment_intent expanded
-        $invoice = \Stripe\Invoice::retrieve([
-            'id'     => $subscription->latest_invoice->id,
-            'expand' => ['payment_intent'],
-        ]);
-
-        Log::info('Invoice retrieved', [
-            'invoice_id'     => $invoice->id,
-            'invoice_status' => $invoice->status,
-            'pi_id'          => $invoice->payment_intent?->id,
-            'pi_status'      => $invoice->payment_intent?->status,
-        ]);
-
-        $paymentIntent = $invoice->payment_intent ?? null;
-
-        if (!$paymentIntent) {
-            $subscription->cancel();
-            return response()->json(['error' => 'Failed to initialise payment. Please try again.'], 500);
-        }
-
         return response()->json([
-            'clientSecret'   => $paymentIntent->client_secret,
-            'subscriptionId' => $subscription->id,
+            'clientSecret' => $setupIntent->client_secret,
         ]);
     }
 
     public function complete(Request $request)
     {
         $request->validate([
-            'subscription_id' => 'required|string',
+            'setup_intent_id' => 'required|string',
             'plan'            => 'required|string',
             'billing'         => 'required|string',
             'amount'          => 'required|integer',
+        ]);
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        $user = auth()->user();
+
+        // Retrieve the setup intent to get the saved payment method
+        $setupIntent     = \Stripe\SetupIntent::retrieve($request->setup_intent_id);
+        $paymentMethodId = $setupIntent->payment_method;
+
+        // Set as default payment method on customer
+        Customer::update($user->stripe_customer_id, [
+            'invoice_settings' => ['default_payment_method' => $paymentMethodId],
+        ]);
+
+        // Now create the subscription with the saved card
+        $subscription = Subscription::create([
+            'customer'               => $user->stripe_customer_id,
+            'items'                  => [['price' => $setupIntent->metadata->price_id]],
+            'default_payment_method' => $paymentMethodId,
+            'metadata'               => [
+                'user_id'     => $user->id,
+                'plan'        => $setupIntent->metadata->plan,
+                'billing'     => $setupIntent->metadata->billing,
+                'server_name' => $setupIntent->metadata->server_name,
+                'egg_id'      => $setupIntent->metadata->egg_id,
+            ],
         ]);
 
         Order::create([
@@ -150,7 +151,7 @@ class CheckoutController extends Controller
             'billing'                => $request->billing,
             'amount'                 => $request->amount,
             'currency'               => 'gbp',
-            'stripe_subscription_id' => $request->subscription_id,
+            'stripe_subscription_id' => $subscription->id,
             'status'                 => 'active',
         ]);
 
